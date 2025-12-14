@@ -1,12 +1,10 @@
+//! GnuPG keybox loading and certificate lookup.
+
 use anyhow::{Context, Result, bail};
-use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
-use openpgp::cert::prelude::*;
-use openpgp::parse::Parse;
-use sequoia_openpgp as openpgp;
+use sequoia_openpgp::cert::prelude::*;
+use sequoia_openpgp::parse::Parse;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 fn gnupg_home() -> Result<PathBuf> {
     if let Ok(dir) = std::env::var("GNUPGHOME") {
@@ -20,7 +18,9 @@ fn keybox_path() -> Result<PathBuf> {
     Ok(gnupg_home()?.join("pubring.kbx"))
 }
 
-pub(crate) fn load_keybox_certs() -> Result<Vec<Cert>> {
+/// Load all OpenPGP certificates from the GnuPG keybox.
+#[tracing::instrument]
+pub fn load_keybox_certs() -> Result<Vec<Cert>> {
     use sequoia_gpg_agent::sequoia_ipc::keybox::{Keybox, KeyboxRecord};
 
     let primary = keybox_path()?;
@@ -58,7 +58,7 @@ pub(crate) fn load_keybox_certs() -> Result<Vec<Cert>> {
                 KeyboxRecord::OpenPGP(o) => Some(o.cert()),
                 _ => None,
             })
-            .collect::<openpgp::Result<Vec<Cert>>>()
+            .collect::<sequoia_openpgp::Result<Vec<Cert>>>()
         {
             Ok(certs) => certs,
             Err(e) => {
@@ -72,6 +72,7 @@ pub(crate) fn load_keybox_certs() -> Result<Vec<Cert>> {
         };
 
         if !certs.is_empty() {
+            tracing::debug!(count = certs.len(), "Loaded certificates from keybox");
             return Ok(certs);
         }
     }
@@ -92,7 +93,9 @@ fn normalize_hexish(s: &str) -> String {
         .collect()
 }
 
-pub(crate) fn find_certs_in_keybox(certs: &[Cert], key_spec: &str) -> Vec<Cert> {
+/// Find certificates in the given cert list matching the key spec.
+#[tracing::instrument(skip(certs), fields(certs_count = certs.len()))]
+pub fn find_certs_in_keybox(certs: &[Cert], key_spec: &str) -> Vec<Cert> {
     let needle_hex = normalize_hexish(key_spec);
     let needle_lc = key_spec.trim().to_lowercase();
 
@@ -124,31 +127,20 @@ pub(crate) fn find_certs_in_keybox(certs: &[Cert], key_spec: &str) -> Vec<Cert> 
 }
 
 /// Load an OpenPGP certificate from a file path, or look it up in the GnuPG keybox.
-pub(crate) fn load_cert(spec: &str) -> Result<Cert> {
-    let spinner = ProgressBar::new_spinner();
-    spinner.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.cyan} {msg}")
-            .unwrap(),
-    );
-    spinner.enable_steady_tick(Duration::from_millis(80));
-
+///
+/// Returns the cert and a boolean indicating if it came from a file (true) or keybox (false).
+#[tracing::instrument]
+pub fn load_cert(spec: &str) -> Result<Cert> {
     let path = Path::new(spec);
     if path.exists() {
-        spinner.set_message(format!(
-            "Loading certificate from {}",
-            style(path.display()).cyan()
-        ));
-        let result = Cert::from_bytes(&std::fs::read(path)?)
+        tracing::debug!("Loading certificate from file");
+        return Cert::from_bytes(&std::fs::read(path)?)
             .with_context(|| format!("Failed to load certificate from file: {}", path.display()));
-        spinner.finish_and_clear();
-        return result;
     }
 
-    spinner.set_message(format!("Searching GnuPG keybox for {}", style(spec).cyan()));
+    tracing::debug!("Searching GnuPG keybox");
     let certs = load_keybox_certs()?;
     let matches = find_certs_in_keybox(&certs, spec);
-    spinner.finish_and_clear();
 
     if matches.is_empty() {
         bail!(
@@ -158,13 +150,9 @@ pub(crate) fn load_cert(spec: &str) -> Result<Cert> {
     }
 
     if matches.len() > 1 {
-        eprintln!(
-            "{} {}",
-            style("Warning:").yellow().bold(),
-            format_args!(
-                "Multiple keys found for '{}'. Using the first one.",
-                style(spec).cyan()
-            ),
+        tracing::warn!(
+            count = matches.len(),
+            "Multiple keys found for spec, using first"
         );
     }
 

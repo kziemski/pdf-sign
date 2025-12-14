@@ -1,8 +1,8 @@
-pub(crate) fn format_bytes(bytes: usize) -> String {
+//! CLI utility functions.
+
+pub fn format_bytes(bytes: usize) -> String {
     const KB: f64 = 1024.0;
     const MB: f64 = KB * 1024.0;
-    // If we show KB with one decimal, avoid ever rounding up to "1024.0 KB".
-    // Threshold is 1023.95 KB (rounds to 1024.0 at 1 decimal) => 1_048_525 bytes.
     const KB_TO_MB_ROUNDING_THRESHOLD: usize = 1_048_525;
 
     if bytes < 1024 {
@@ -16,11 +16,10 @@ pub(crate) fn format_bytes(bytes: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::format_bytes;
+    use super::*;
 
     #[test]
     fn never_displays_1024_kb_due_to_rounding() {
-        // Values right below 1 MiB should switch to MB before rounding shows 1024.0 KB.
         for bytes in 1_048_560..1_048_576 {
             let s = format_bytes(bytes);
             assert!(

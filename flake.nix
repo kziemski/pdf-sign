@@ -1,5 +1,5 @@
 {
-  description = "pdf-sign: lightweight PDF signing with OpenPGP via gpg-agent";
+  description = "pdf-sign: lightweight PDF signing with OpenPGP (GPG) and Sigstore (keyless OIDC)";
 
   nixConfig = {
     extra-substituters = [

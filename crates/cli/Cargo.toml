@@ -1,0 +1,25 @@
+[package]
+name = "pdf-sign-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "pdf-sign"
+path = "src/main.rs"
+
+[dependencies]
+pdf-sign-core = { path = "../core" }
+pdf-sign-gpg = { path = "../gpg" }
+pdf-sign-sigstore = { path = "../sigstore" }
+anyhow.workspace = true
+clap.workspace = true
+console.workspace = true
+indicatif.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true

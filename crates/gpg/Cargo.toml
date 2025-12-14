@@ -1,0 +1,17 @@
+[package]
+name = "pdf-sign-gpg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+pdf-sign-core = { path = "../core" }
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+sequoia-openpgp.workspace = true
+sequoia-gpg-agent.workspace = true
+tokio.workspace = true

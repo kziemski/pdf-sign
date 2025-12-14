@@ -15,6 +15,8 @@
     package.commonArgs
     // {
       cargoArtifacts = package.cargoArtifacts;
+      # Test all workspace members
+      cargoTestArgs = "--workspace --all-features";
     }
   );
 
