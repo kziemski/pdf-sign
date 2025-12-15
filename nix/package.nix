@@ -54,6 +54,30 @@ rec {
         mainProgram = "pdf-sign";
         platforms = platforms.unix;
       };
+
+      passthru.image = image;
     }
   );
+
+  image = pkgs.dockerTools.buildLayeredImage {
+    name = "ghcr.io/0x77dev/pdf-sign";
+    tag = "latest";
+
+    contents = [ pdfSign ];
+
+    config = {
+      Cmd = [ "${lib.getExe pdfSign}" ];
+      WorkingDir = "/work";
+      Env = [
+        "GNUPGHOME=/gnupg"
+      ];
+      ExposedPorts = {
+        "8080/tcp" = { };
+      };
+      Volumes = {
+        "/gnupg" = { };
+        "/work" = { };
+      };
+    };
+  };
 }

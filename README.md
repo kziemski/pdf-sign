@@ -14,11 +14,17 @@ Many "enterprise PDF signing" solutions require a full **CMS/PKCS#7** / **X.509 
 
 * **Two signing backends**: Choose between traditional GPG (with hardware key support) or modern Sigstore (keyless OIDC).
 * **Preserves PDF integrity**: Original PDF content unchanged; signatures appended after `%%EOF`.
-* **Multi-signer workflow**: Supports multiple signatures (GPG + Sigstore) on the same document.
+* **Multi-signer workflow**: Supports multiple signatures (GPG + Sigstore) on the same document, and/or multi-party signing.
 * **Privacy-preserving**: No extra PII embedded; library never logs sensitive data.
-* **Portable architecture**: Clean core library (WASM-ready) with pluggable backends.
 
 ## Quickstart
+
+### Install with Nix
+
+```bash
+nix profile install github:0x77dev/pdf-sign#pdf-sign
+pdf-sign --help
+```
 
 ### Install with Cargo
 
@@ -33,13 +39,6 @@ pdf-sign sign --backend sigstore document.pdf
 
 # Verify (automatically handles both GPG and Sigstore)
 pdf-sign verify document_signed.pdf
-```
-
-### Install with Nix
-
-```bash
-nix profile install github:0x77dev/pdf-sign#pdf-sign
-pdf-sign --help
 ```
 
 ### Build from Source
@@ -211,7 +210,6 @@ pdf-sign apply-response document.pdf \
 
 * **Portable core**: PDF splitting, suffix parsing, digest abstraction (no CLI/UI deps).
 * **Pluggable backends**: Clean separation between GPG and Sigstore signing logic.
-* **WASM-ready**: Core library and backends compile to WebAssembly.
 * **Hash agility**: SHA-512 default with SRI-style encoding (`sha512-<base64>`).
 * **Versioned format**: Sigstore blocks use bilrost (efficient binary) with version tagging.
 * **Structured tracing**: Full `tracing` instrumentation (never logs sensitive data).
@@ -279,25 +277,6 @@ Versioned bilrost-encoded blocks with digest binding:
 * Web browser (for OIDC auth) or `--identity-token` for CI
 * Network access (Fulcio, Rekor, OIDC provider)
 * No keys/certs required
-
-## Workspace Structure
-
-```text
-crates/
-├── core/      # Portable library (PDF, suffix, digest) - WASM-compatible
-├── gpg/       # OpenPGP backend (sequoia) - WASM-compatible
-├── sigstore/  # Sigstore keyless backend - WASM-compatible
-├── wasm/      # WebAssembly bindings with TypeScript definitions
-└── cli/       # CLI with UI/JSON/tracing setup - Native only
-```
-
-Modular design enables:
-
-* Backend-agnostic PDF processing
-* Full WASM support (core + gpg + sigstore)
-* Clean testing boundaries
-* Structured tracing without data leakage
-* TypeScript-first browser integration
 
 ## Environment Variables
 
@@ -382,37 +361,6 @@ pdf-sign apply-response sensitive.pdf \
 pdf-sign verify sensitive_signed.pdf
 ```
 
-### WASM in browser
-
-```bash
-# Build WASM package with Nix
-nix develop
-cd crates/wasm
-wasm-pack build --target web
-
-# Copy pkg/ to your web project
-cp -r pkg /path/to/your/web/project/
-```
-
-```javascript
-import init, { prepare_challenge, apply_response, verify_gpg } from './pkg/pdf_sign_wasm.js';
-
-await init();
-
-// Client-side GPG verification
-const pdfFile = await fetch('document_signed.pdf');
-const pdfBytes = new Uint8Array(await pdfFile.arrayBuffer());
-const result = verify_gpg(pdfBytes);
-
-if (result.valid) {
-  console.log('Valid signatures:');
-  result.gpg_signatures.forEach(sig => {
-    console.log(`  - ${sig.fingerprint}`);
-    sig.uids.forEach(uid => console.log(`    ${uid}`));
-  });
-}
-```
-
 ## License
 
-GPL-3.0-only
+GPL-3.0-only – See [`LICENSE`](./LICENSE).
