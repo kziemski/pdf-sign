@@ -1,6 +1,7 @@
 {
   pkgs,
   pdfSign,
+  autocast,
   pre-commit-check,
 }:
 pkgs.mkShell {
@@ -27,6 +28,10 @@ pkgs.mkShell {
       # Web development
       bun
       nodejs_24
+
+      # Demo tools
+      asciinema
+      autocast
     ]
     ++ pre-commit-check.enabledPackages;
 }

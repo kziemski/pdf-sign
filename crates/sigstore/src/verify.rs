@@ -33,6 +33,17 @@ pub struct VerifyOptions {
   pub offline: bool,
 }
 
+/// Extract identity + issuer from the embedded Sigstore bundle block.
+///
+/// This can be used to show users what values to pass as
+/// `--certificate-identity` and `--certificate-oidc-issuer` for pinned
+/// verification.
+pub fn extract_identity_from_block(bundle_block: &SigstoreBundleBlock) -> Result<(String, String)> {
+  let bundle: sigstore::bundle::Bundle = serde_json::from_slice(&bundle_block.bundle_json)
+    .context("Failed to parse Sigstore bundle JSON")?;
+  extract_identity_from_bundle(&bundle)
+}
+
 /// Verify a Sigstore bundle block against the given data.
 ///
 /// Returns verified signature information on success.
@@ -238,10 +249,19 @@ fn extract_identity_from_bundle(bundle: &sigstore::bundle::Bundle) -> Result<(St
     .extensions
     .as_ref()
     .and_then(|exts| exts.iter().find(|ext| ext.extn_id == issuer_oid))
-    .and_then(|ext| String::from_utf8(ext.extn_value.clone().into_bytes()).ok())
+    .and_then(|ext| {
+      let s = String::from_utf8(ext.extn_value.clone().into_bytes()).ok()?;
+      Some(
+        s.trim_matches(|c: char| c.is_whitespace() || c == '\0')
+          .to_string(),
+      )
+    })
     .unwrap_or_else(|| "unknown".to_string());
 
-  Ok((cert_identity, cert_issuer))
+  Ok((
+    cert_identity.trim().to_string(),
+    cert_issuer.trim().to_string(),
+  ))
 }
 
 /// Extract display-friendly bundle info (for output).
@@ -285,10 +305,15 @@ fn extract_bundle_info(bundle: &sigstore::bundle::Bundle) -> Result<(String, Str
   let san = SubjectAltName::from_der(san_ext.extn_value.as_bytes())
     .context("Failed to parse SAN extension")?;
 
+  use x509_cert::ext::pkix::name::GeneralName;
   let cert_identity = san
     .0
-    .first()
-    .map(|name| format!("{:?}", name))
+    .iter()
+    .find_map(|name| match name {
+      GeneralName::Rfc822Name(email) => Some(email.to_string()),
+      GeneralName::UniformResourceIdentifier(uri) => Some(uri.to_string()),
+      _ => None,
+    })
     .unwrap_or_else(|| "unknown".to_string());
 
   // Extract issuer from OIDC Issuer extension (OID 1.3.6.1.4.1.57264.1.1)
@@ -303,5 +328,10 @@ fn extract_bundle_info(bundle: &sigstore::bundle::Bundle) -> Result<(String, Str
     .and_then(|ext| String::from_utf8(ext.extn_value.clone().into_bytes()).ok())
     .unwrap_or_else(|| "unknown".to_string());
 
-  Ok((cert_identity, cert_issuer))
+  Ok((
+    cert_identity.trim().to_string(),
+    cert_issuer
+      .trim_matches(|c: char| c.is_whitespace() || c == '\0')
+      .to_string(),
+  ))
 }

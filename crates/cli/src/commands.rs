@@ -117,14 +117,6 @@ pub fn verify_pdf(
       || certificate_oidc_issuer.is_some()
       || certificate_oidc_issuer_regexp.is_some();
 
-    if !has_sigstore_constraints {
-      bail!(
-        "Sigstore signatures found, but no verification policy provided.\n\
-                 Please specify --certificate-identity and --certificate-oidc-issuer\n\
-                 (or their regexp variants) to verify Sigstore signatures."
-      );
-    }
-
     let cert_identity_matcher = match (certificate_identity, certificate_identity_regexp) {
       (Some(exact), None) => Some(CertificateIdentityMatcher::Exact(exact)),
       (None, Some(re)) => Some(CertificateIdentityMatcher::Regexp(re)),
@@ -142,11 +134,23 @@ pub fn verify_pdf(
       certificate_oidc_issuer: cert_issuer_matcher,
     };
 
-    let options = SigstoreVerifyOptions { policy, offline };
-
     let rt = tokio::runtime::Runtime::new()?;
 
     for bundle_block in &sigstore_blocks {
+      // If the user didn't provide an explicit policy, use the embedded
+      // identity/issuer from the Sigstore bundle itself.
+      let options = if has_sigstore_constraints {
+        let policy = policy.clone();
+        SigstoreVerifyOptions { policy, offline }
+      } else {
+        let (id, iss) = pdf_sign_sigstore::verify::extract_identity_from_block(bundle_block)?;
+        let policy = VerifyPolicy {
+          certificate_identity: Some(CertificateIdentityMatcher::Exact(id)),
+          certificate_oidc_issuer: Some(OidcIssuerMatcher::Exact(iss)),
+        };
+        SigstoreVerifyOptions { policy, offline }
+      };
+
       let result = rt.block_on(verify_blob(pdf_data, bundle_block, &options))?;
       sigstore_verified.push(result);
     }

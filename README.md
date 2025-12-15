@@ -1,8 +1,12 @@
 # pdf-sign
 
-A lightweight, modern PDF signing utility written in Rust that supports both **OpenPGP (GPG)** and **Sigstore (keyless OIDC)** signatures. It appends cryptographic signatures directly to PDFs, making it easy to sign and verify documents without heavyweight PDF signing stacks.
+A lightweight, modern PDF signing utility written in Rust that supports both **OpenPGP (GPG)** and **Sigstore (keyless OIDC)** signatures. It appends cryptographic signatures directly to PDFs, making it easy to sign and verify documents without heavyweight PDF signing stacks, making your PDFs authentic and tamper-proof.
+
+[![asciicast](https://asciinema.org/a/JXR1crpqtcbMT1DIhD3dzXFB9.svg)](https://asciinema.org/a/JXR1crpqtcbMT1DIhD3dzXFB9)
 
 ## Why pdf-sign?
+
+With `pdf-sign`, anyone can sign a PDF using their existing Google, Microsoft, or GitHub account – no cryptographic keys to generate, store, or manage. For power users and security-conscious workflows, it also supports GPG with full hardware key (YubiKey/smartcard) integration. Whether you're a huge company automating signatures, or just need to sign a contract, `pdf-sign` gets out of your way.
 
 Many "enterprise PDF signing" solutions require a full **CMS/PKCS#7** / **X.509 PKI** toolchain (certificate chains, policy constraints, CRL/OCSP revocation, time-stamping/TSAs) plus PDF-form machinery to produce **PAdES** signatures. Those stacks are powerful, but complex to configure, audit, and automate.
 

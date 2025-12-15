@@ -51,19 +51,26 @@
             ;
         };
 
-        packages = {
-          default = package.pdfSign;
-          pdf-sign = package.pdfSign;
-          pdf-sign-wasm =
-            (import ./nix/wasm.nix {
+        packages =
+          let
+            autocast = import ./nix/demo.nix {
               inherit pkgs craneLib;
               lib = pkgs.lib;
-            }).pdf-sign-wasm;
-        };
+            };
+          in
+          {
+            default = package.pdfSign;
+            pdf-sign = package.pdfSign;
+            inherit autocast;
+          };
 
         devShells.default = import ./nix/shell.nix {
           inherit pkgs;
           pdfSign = package.pdfSign;
+          autocast = import ./nix/demo.nix {
+            inherit pkgs craneLib;
+            lib = pkgs.lib;
+          };
           pre-commit-check = import ./nix/git-hooks.nix {
             inherit git-hooks system pkgs;
             src = ./.;
